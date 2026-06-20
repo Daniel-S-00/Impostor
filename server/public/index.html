@@ -40,11 +40,11 @@
             padding: 24px;
             border-radius: 12px;
             width: 100%;
-            max-width: 440px;
+            max-width: 480px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
         }
 
-        h2, h3 { margin-top: 0; }
+        h2, h3, h4 { margin-top: 0; }
 
         .muted { color: var(--muted); font-size: 0.9rem; }
 
@@ -83,13 +83,26 @@
         }
         button.ghost:hover:not(:disabled) { background: var(--surface-2); }
 
+        .section {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+        }
+        .section h4 {
+            margin: 0 0 8px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
         ul {
             list-style: none;
             padding: 0;
-            margin: 12px 0;
+            margin: 0;
         }
 
-        li {
+        li.player {
             background: var(--surface-2);
             margin-top: 6px;
             padding: 10px 12px;
@@ -99,33 +112,65 @@
             justify-content: space-between;
             gap: 8px;
         }
+        li.player .name { font-weight: 500; }
+        li.player .left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
 
         .badge {
             background: var(--warning);
             color: #1f2937;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
             padding: 2px 8px;
             border-radius: 999px;
             text-transform: uppercase;
         }
+        .badge.voted {
+            background: var(--success);
+            color: #052e16;
+        }
+        .badge.you {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .vote-btn {
+            width: auto;
+            padding: 6px 12px;
+            margin: 0;
+            font-size: 0.85rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .vote-btn:hover { background: var(--surface-2); }
+        .vote-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        .vote-btn:disabled { display: none; }
 
         .hidden { display: none !important; }
 
         .role {
             text-align: center;
-            margin: 16px 0 20px;
+            margin: 12px 0 16px;
         }
         .role .label {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 700;
             letter-spacing: 0.04em;
         }
         .role.impostor .label { color: var(--primary); }
         .role.crewmate .label { color: var(--success); }
         .role .word {
-            font-size: 1.4rem;
-            margin: 8px 0 0;
+            font-size: 1.3rem;
+            margin: 6px 0 0;
             color: var(--text);
         }
 
@@ -141,26 +186,12 @@
             margin-top: 8px;
         }
 
-        .vote-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 12px;
+        .progress {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 8px;
         }
-        .vote-grid button { margin: 0; }
-
-        .center { text-align: center; }
-        .spinner {
-            display: inline-block;
-            width: 14px; height: 14px;
-            border: 2px solid var(--muted);
-            border-top-color: var(--text);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -177,7 +208,12 @@
     <div class="card hidden" id="lobby">
         <h3>Sala <span id="lobbyCode"></span></h3>
         <p class="muted" id="roundInfo">Sala de espera</p>
-        <ul id="playerList"></ul>
+
+        <div class="section">
+            <h4>Jugadores</h4>
+            <ul id="lobbyPlayerList"></ul>
+        </div>
+
         <div class="host-controls hidden" id="hostControls">
             <label for="impostorCount">Cantidad de impostores</label>
             <select id="impostorCount">
@@ -190,33 +226,16 @@
         <p class="muted" id="lobbyStatus"></p>
     </div>
 
-    <div class="card hidden" id="cardView">
+    <div class="card hidden" id="gameView">
         <h3>Tu carta</h3>
         <div class="role" id="role"></div>
-        <button id="hideCardBtn" class="ghost">Ocultar carta</button>
-        <div class="host-controls hidden" id="cardHostControls">
-            <button id="startVotingFromCardBtn" class="secondary">Iniciar votación</button>
+        <button id="toggleCardBtn" class="ghost">Ocultar carta</button>
+
+        <div class="section">
+            <h4>Jugadores <span class="muted" id="voteProgress"></span></h4>
+            <ul id="gamePlayerList"></ul>
+            <p class="progress" id="waitingMessage"></p>
         </div>
-    </div>
-
-    <div class="card hidden" id="hiddenView">
-        <h3 class="center">Carta oculta</h3>
-        <p class="muted center" id="hiddenMessage"></p>
-        <button id="showCardBtn" class="ghost">Mostrar carta</button>
-        <div class="host-controls hidden" id="hiddenHostControls">
-            <button id="startVotingFromHiddenBtn" class="secondary">Iniciar votación</button>
-        </div>
-    </div>
-
-    <div class="card hidden" id="voting">
-        <h3>Votación</h3>
-        <p class="muted">Elige a quién expulsar.</p>
-        <div class="vote-grid" id="voteButtons"></div>
-    </div>
-
-    <div class="card hidden" id="voted">
-        <h3 class="center"><span class="spinner"></span>Voto enviado</h3>
-        <p class="muted center">Esperando a los demás jugadores…</p>
     </div>
 
     <script>
@@ -226,11 +245,10 @@
             currentRoom: null,
             room: null,
             card: null,
-            cardHidden: false,
-            hasVoted: false
+            cardHidden: false
         };
 
-        const views = ["login", "lobby", "cardView", "hiddenView", "voting", "voted"];
+        const views = ["login", "lobby", "gameView"];
 
         function showView(name) {
             for (const v of views) {
@@ -242,36 +260,106 @@
             return state.room && state.myId && state.room.host === state.myId;
         }
 
+        function myVoteTarget() {
+            if (!state.room) return null;
+            const voters = state.room.voters || [];
+            if (!voters.includes(state.myId)) return null;
+            return state.room.players ? null : null;
+        }
+
+        function getMyVote() {
+            // The server doesn't expose who you voted for in public state.
+            // We track it client-side for instant feedback, but the canonical
+            // record lives on the server. On room updates we re-derive from
+            // the previous client state (which is good enough for UX).
+            return state._lastVoteFor || null;
+        }
+
+        function setMyVote(targetId) {
+            state._lastVoteFor = targetId;
+        }
+
         function resetToLogin() {
             state.currentRoom = null;
             state.room = null;
             state.card = null;
             state.cardHidden = false;
-            state.hasVoted = false;
+            state._lastVoteFor = null;
             document.getElementById("roomCode").value = "";
             showView("login");
         }
 
         function readNickname() {
             const n = document.getElementById("nickname").value.trim();
-            if (!n) {
-                alert("Escribe un nickname.");
-                return null;
-            }
-            if (n.length > 20) {
-                alert("El nickname debe tener máximo 20 caracteres.");
-                return null;
-            }
+            if (!n) { alert("Escribe un nickname."); return null; }
+            if (n.length > 20) { alert("El nickname debe tener máximo 20 caracteres."); return null; }
             return n;
         }
 
         function readRoomCode() {
             const c = document.getElementById("roomCode").value.trim().toUpperCase();
-            if (!/^[A-Z0-9]{4}$/.test(c)) {
-                alert("El código de sala debe tener 4 caracteres.");
-                return null;
-            }
+            if (!/^[A-Z0-9]{4}$/.test(c)) { alert("El código de sala debe tener 4 caracteres."); return null; }
             return c;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function buildPlayerRow({ id, player, phase, showVoteButton }) {
+            const li = document.createElement("li");
+            li.className = "player";
+
+            const left = document.createElement("div");
+            left.className = "left";
+
+            const name = document.createElement("span");
+            name.className = "name";
+            name.textContent = player.nickname;
+            left.appendChild(name);
+
+            const isMe = id === state.myId;
+            if (isMe) {
+                const meBadge = document.createElement("span");
+                meBadge.className = "badge you";
+                meBadge.textContent = "Tú";
+                left.appendChild(meBadge);
+            } else if (id === state.room.host) {
+                const hostBadge = document.createElement("span");
+                hostBadge.className = "badge";
+                hostBadge.textContent = "Anfitrión";
+                left.appendChild(hostBadge);
+            }
+
+            li.appendChild(left);
+
+            if (showVoteButton && !isMe) {
+                const votedAlready = (state.room.voters || []).includes(id);
+                if (phase === "game" && votedAlready && !isMe) {
+                    const votedBadge = document.createElement("span");
+                    votedBadge.className = "badge voted";
+                    votedBadge.textContent = "Votó";
+                    li.appendChild(votedBadge);
+                }
+
+                const myCurrent = getMyVote();
+                const btn = document.createElement("button");
+                btn.className = "vote-btn" + (myCurrent === id ? " active" : "");
+                btn.textContent = myCurrent === id ? "Tu voto" : "Votar";
+                btn.onclick = () => {
+                    socket.emit("vote", { code: state.currentRoom, targetId: id });
+                    setMyVote(id);
+                    renderView();
+                };
+                li.appendChild(btn);
+            }
+
+            return li;
         }
 
         function renderLobby() {
@@ -281,20 +369,10 @@
                     ? `Ronda ${state.room.currentRound} · Listos para la siguiente`
                     : "Sala de espera";
 
-            const ul = document.getElementById("playerList");
+            const ul = document.getElementById("lobbyPlayerList");
             ul.innerHTML = "";
             for (const [id, p] of Object.entries(state.room.players)) {
-                const li = document.createElement("li");
-                const name = document.createElement("span");
-                name.textContent = p.nickname;
-                li.appendChild(name);
-                if (id === state.room.host) {
-                    const badge = document.createElement("span");
-                    badge.className = "badge";
-                    badge.textContent = "Anfitrión";
-                    li.appendChild(badge);
-                }
-                ul.appendChild(li);
+                ul.appendChild(buildPlayerRow({ id, player: p, phase: "lobby", showVoteButton: false }));
             }
 
             const hostControls = document.getElementById("hostControls");
@@ -321,6 +399,14 @@
 
         function renderCard() {
             const div = document.getElementById("role");
+            const toggleBtn = document.getElementById("toggleCardBtn");
+
+            if (state.cardHidden) {
+                div.innerHTML = '<div class="muted">Carta oculta</div>';
+                toggleBtn.textContent = "Mostrar carta";
+                return;
+            }
+
             div.className = "role " + (state.card.role === "impostor" ? "impostor" : "crewmate");
             if (state.card.role === "impostor") {
                 div.innerHTML =
@@ -333,40 +419,31 @@
                     `<p>Categoría: <b>${escapeHtml(state.card.category)}</b></p>` +
                     `<p class="word">Palabra: <b>${escapeHtml(state.card.word)}</b></p>`;
             }
-            document.getElementById("cardHostControls").classList.toggle("hidden", !isHost());
+            toggleBtn.textContent = "Ocultar carta";
         }
 
-        function renderHidden() {
-            const msg = document.getElementById("hiddenMessage");
-            msg.textContent = isHost()
-                ? "Cuando todos estén listos, inicia la votación."
-                : "Esperando a que el anfitrión inicie la votación…";
-            document.getElementById("hiddenHostControls").classList.toggle("hidden", !isHost());
-        }
+        function renderGame() {
+            renderCard();
 
-        function renderVoting() {
-            const container = document.getElementById("voteButtons");
-            container.innerHTML = "";
+            const ul = document.getElementById("gamePlayerList");
+            ul.innerHTML = "";
             for (const [id, p] of Object.entries(state.room.players)) {
-                if (id === state.myId) continue;
-                const btn = document.createElement("button");
-                btn.textContent = p.nickname;
-                btn.onclick = () => {
-                    socket.emit("vote", { code: state.currentRoom, targetId: id });
-                    state.hasVoted = true;
-                    renderView();
-                };
-                container.appendChild(btn);
+                ul.appendChild(buildPlayerRow({ id, player: p, phase: "game", showVoteButton: true }));
             }
-        }
 
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
+            const total = Object.keys(state.room.players).length;
+            const votedCount = (state.room.voters || []).length;
+            document.getElementById("voteProgress").textContent = `(${votedCount} / ${total})`;
+
+            const waiting = document.getElementById("waitingMessage");
+            const myVoted = (state.room.voters || []).includes(state.myId);
+            if (votedCount < total) {
+                waiting.textContent = myVoted
+                    ? "Voto enviado. Esperando a los demás…"
+                    : "Elige a quién expulsar. Puedes cambiar tu voto en cualquier momento.";
+            } else {
+                waiting.textContent = "Todos han votado. Calculando…";
+            }
         }
 
         function renderView() {
@@ -379,20 +456,8 @@
                 showView("lobby");
                 renderLobby();
             } else if (phase === "game") {
-                if (state.card && !state.cardHidden) {
-                    showView("cardView");
-                    renderCard();
-                } else {
-                    showView("hiddenView");
-                    renderHidden();
-                }
-            } else if (phase === "voting") {
-                if (state.hasVoted) {
-                    showView("voted");
-                } else {
-                    showView("voting");
-                    renderVoting();
-                }
+                showView("gameView");
+                renderGame();
             } else {
                 showView("lobby");
             }
@@ -422,24 +487,9 @@
             socket.emit("startGame", { code: state.currentRoom });
         };
 
-        document.getElementById("hideCardBtn").onclick = () => {
-            state.cardHidden = true;
+        document.getElementById("toggleCardBtn").onclick = () => {
+            state.cardHidden = !state.cardHidden;
             renderView();
-        };
-
-        document.getElementById("showCardBtn").onclick = () => {
-            state.cardHidden = false;
-            renderView();
-        };
-
-        document.getElementById("startVotingFromCardBtn").onclick = () => {
-            if (!state.currentRoom) return;
-            socket.emit("startVoting", { code: state.currentRoom });
-        };
-
-        document.getElementById("startVotingFromHiddenBtn").onclick = () => {
-            if (!state.currentRoom) return;
-            socket.emit("startVoting", { code: state.currentRoom });
         };
 
         socket.on("connect", () => {
@@ -455,7 +505,7 @@
             if (room.phase === "lobby") {
                 state.card = null;
                 state.cardHidden = false;
-                state.hasVoted = false;
+                state._lastVoteFor = null;
             }
             renderView();
         });
@@ -463,19 +513,13 @@
         socket.on("card", (card) => {
             state.card = card;
             state.cardHidden = false;
-            state.hasVoted = false;
-            renderView();
-        });
-
-        socket.on("votingStarted", (room) => {
-            state.room = room;
-            state.hasVoted = false;
+            state._lastVoteFor = null;
             renderView();
         });
 
         socket.on("votingResult", (data) => {
             if (data.tie) {
-                alert("Empate. Nadie fue expulsado. Pueden volver a votar.");
+                alert("Empate. Nadie fue expulsado. Vuelvan a votar.");
             } else {
                 const verdict = data.wasImpostor ? "SÍ, era el Impostor 😈" : "NO, era inocente 😇";
                 alert(`Expulsado: ${data.expelled}\n${verdict}`);

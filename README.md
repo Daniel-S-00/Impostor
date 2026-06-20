@@ -90,20 +90,18 @@ Client → server:
 | Event              | Payload                  | Description                                  |
 |--------------------|--------------------------|----------------------------------------------|
 | `createRoom`       | `{ nickname }`           | Create a new room, become host.              |
-| `joinRoom`         | `{ nickname, code }`     | Join an existing room (lobby phase only).    |
+| `joinRoom`         | `{ nickname, code }`     | Join an existing room (lobby phase only). The server also emits `roomCreated` to the joiner. |
 | `setImpostorCount` | `{ code, count }`        | Host picks how many impostors (1–3).         |
 | `startGame`        | `{ code }`               | Host starts a new round (≥ 2 players).       |
-| `startVoting`      | `{ code }`               | Host opens the voting phase (≥ 3 players).   |
-| `vote`             | `{ code, targetId }`     | Cast a vote (cannot vote for yourself).      |
+| `vote`             | `{ code, targetId }`     | Cast or change a vote. Cannot vote for yourself. The round auto-ends when everyone has voted. |
 
 Server → client:
 
 | Event            | Payload                                  | Description                                |
 |------------------|------------------------------------------|--------------------------------------------|
-| `roomCreated`    | `{ code }`                               | Sent to the creator with the code.         |
-| `roomUpdate`     | `publicRoomState`                        | Lobby / in-game state (no roles, no word). |
+| `roomCreated`    | `{ code }`                               | Sent to the creator and to any joiner.     |
+| `roomUpdate`     | `publicRoomState`                        | Lobby / in-game state. Includes `voters: string[]` (ids that have already cast a vote in the current round). Re-broadcast after every vote. |
 | `card`           | `{ role, category, word? }`              | Private role card.                         |
-| `votingStarted`  | `publicRoomState`                        | Voting phase opened.                       |
 | `votingResult`   | `{ tie, counts, expelled?, wasImpostor? }` | Round result.                            |
 | `gameEnded`      | `{ winner, reason }`                     | `"crew"` or `"impostors"`.                 |
 | `youWereExpelled`| `{ wasImpostor }`                        | Sent only to the expelled player.          |

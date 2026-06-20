@@ -214,6 +214,7 @@ io.on("connection", (socket) => {
         }
         room.players[socket.id] = { nickname: nickname.trim() };
         socket.join(code);
+        socket.emit("roomCreated", { code });
         broadcastRoom(room);
         console.log(`${nickname} joined room ${code}.`);
     });
@@ -255,34 +256,15 @@ io.on("connection", (socket) => {
         console.log(`Room ${code} round ${room.currentRound} started.`);
     });
 
-    socket.on("startVoting", ({ code } = {}) => {
-        if (!checkRate(socket, "startVoting")) return;
-        const room = getRoom(code);
-        if (!room) return sendError(socket, "La sala no existe.");
-        if (!isHost(room, socket.id)) {
-            return sendError(socket, "Solo el anfitrión puede iniciar la votación.");
-        }
-        if (room.phase !== PHASES.GAME) {
-            return sendError(socket, "La votación solo puede iniciarse durante la partida.");
-        }
-        if (Object.keys(room.players).length < 3) {
-            return sendError(socket, "Se necesitan al menos 3 jugadores para votar.");
-        }
-
-        room.votes = {};
-        room.phase = PHASES.VOTING;
-        io.to(code).emit("votingStarted", publicRoomState(room));
-        console.log(`Room ${code} voting started.`);
-    });
-
     socket.on("vote", ({ code, targetId } = {}) => {
         if (!checkRate(socket, "vote")) return;
         const room = getRoom(code);
-        if (!room || room.phase !== PHASES.VOTING) return;
+        if (!room || room.phase !== PHASES.GAME) return;
         if (!room.players[targetId]) return;
         if (targetId === socket.id) return;
 
         room.votes[socket.id] = targetId;
+        broadcastRoom(room);
 
         const aliveCount = Object.keys(room.players).length;
         if (Object.keys(room.votes).length === aliveCount) {

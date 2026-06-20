@@ -38,7 +38,7 @@ describe("createRateLimiter", () => {
 
 describe("DEFAULT_RATE_LIMITS", () => {
     it("defines a limit for every game event", () => {
-        for (const name of ["createRoom", "joinRoom", "setImpostorCount", "startGame", "startVoting", "vote"]) {
+        for (const name of ["createRoom", "joinRoom", "setImpostorCount", "startGame", "vote"]) {
             const cfg = DEFAULT_RATE_LIMITS[name];
             expect(cfg).toBeDefined();
             expect(cfg.windowMs).toBeGreaterThan(0);

@@ -90,52 +90,50 @@ Client → server:
 | Event              | Payload                       | Notes                                 |
 |--------------------|-------------------------------|---------------------------------------|
 | `createRoom`       | `{ nickname }`                | Becomes host.                         |
-| `joinRoom`         | `{ nickname, code }`          | Rejected if the room is mid-round.    |
+| `joinRoom`         | `{ nickname, code }`          | Rejected if the room is mid-round. The server emits `roomCreated` to the joiner so the client can switch views. |
 | `setImpostorCount` | `{ code, count }`             | Host only, lobby phase only.          |
 | `startGame`        | `{ code }`                    | Host only, lobby phase, ≥ 2 players.  |
-| `startVoting`      | `{ code }`                    | Host only, game phase, ≥ 3 players.   |
-| `vote`             | `{ code, targetId }`          | Cannot vote for yourself.             |
+| `vote`             | `{ code, targetId }`          | Game phase only. Replaces any previous vote from the same socket. Cannot vote for yourself. |
 
 Server → client:
 
 | Event              | Payload                                                 | Notes                              |
 |--------------------|---------------------------------------------------------|------------------------------------|
-| `roomCreated`      | `{ code }`                                              | Sent only to the creator.          |
-| `roomUpdate`       | `publicRoomState`                                       | Broadcast to the whole room.       |
+| `roomCreated`      | `{ code }`                                              | Sent to the creator and to anyone who joined. |
+| `roomUpdate`       | `publicRoomState`                                       | Broadcast to the whole room. Re-broadcast on every vote so the `voters` list stays current. |
 | `card`             | `{ role, category, word? }`                             | **Private** — one socket only.     |
-| `votingStarted`    | `publicRoomState`                                       | Phase becomes `voting`.            |
 | `votingResult`     | `{ tie, counts, expelled?, wasImpostor? }`              | Broadcast.                         |
 | `gameEnded`        | `{ winner, reason }`                                    | Broadcast.                         |
 | `youWereExpelled`  | `{ wasImpostor }`                                       | **Private** — expelled socket only.|
 | `errorMessage`     | `{ message }`                                           | Human-readable Spanish.            |
 
-`publicRoomState` is the only shape sent in `roomUpdate` / `votingStarted`.
-**Never** include `role`, `word`, or `impostorIds` in it — see the
-`publicRoomState` test in `game-logic.test.js`.
+`publicRoomState` is the only shape sent in `roomUpdate`. It includes
+`voters: string[]` (the ids that have already cast a vote in the current
+round) so clients can show progress. **Never** include `role`, `word`, or
+`impostorIds` in it — see the `publicRoomState` test in `game-logic.test.js`.
 
 ## Room state machine
 
 ```
-            startGame                 startVoting
-   lobby ───────────▶ game ─────────────────▶ voting
-     ▲                  │                        │
-     │                  │                        │ tally
-     │   resetRoomFor   │  tie                   ▼
-     └──── NewRound ────┘◀──────────  finishVoting
-                                              │ win
-                                              ▼
-                                          (gameEnded)
-                                              │
-                                              ▼
-                                            lobby
+            startGame                                  all voted
+   lobby ───────────▶ game ──────────────────────────▶ tally
+     ▲                  │                                │
+     │                  │ tie (votes cleared)            │ non-tie, win
+     │                  └──────────────┐                 ▼
+     │                                 │            gameEnded
+     │   resetRoomFor  ◀───────────────┘                 │
+     │   NewRound                                       │
+     └──────────────────────────────────────────────────┘
 ```
 
 - `lobby` → host can change impostor count and start the round.
-- `game` → cards have been dealt, host can start voting.
-- `voting` → players cast votes; server auto-finishes when everyone voted.
-- Tie → votes cleared, room stays in `game` for the host to re-trigger voting.
-- Non-tie, no win → room resets to `lobby` (next round).
-- Non-tie, win → `gameEnded` emitted, then room resets to `lobby`.
+- `game` → cards have been dealt. The player list is visible and every player
+  has an inline vote button. Votes are accepted any time during `game`.
+  Changing a vote overwrites the previous one.
+- The server runs `finishVoting` as soon as `voters.length === playerCount`:
+  - Tie → votes cleared, room stays in `game` for everyone to re-vote.
+  - Non-tie, no win → room resets to `lobby` (next round).
+  - Non-tie, win → `gameEnded` emitted, then room resets to `lobby`.
 
 ## Server-side rules (do not skip)
 

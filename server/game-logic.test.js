@@ -207,6 +207,7 @@ describe("publicRoomState", () => {
             word: "Secreto",
             category: "Animales",
             impostorIds: ["h"],
+            votes: {},
             players: {
                 h: { nickname: "Host", role: ROLES.IMPOSTOR },
                 o: { nickname: "Otro", role: ROLES.CREWMATE }
@@ -218,5 +219,39 @@ describe("publicRoomState", () => {
         expect(pub.players.h).not.toHaveProperty("role");
         expect(pub.players.h.nickname).toBe("Host");
         expect(pub.players.o.nickname).toBe("Otro");
+    });
+
+    it("exposes the list of voters (ids that have cast a vote)", () => {
+        const room = {
+            code: "ROOM",
+            host: "h",
+            phase: PHASES.GAME,
+            impostorCount: 1,
+            currentRound: 1,
+            word: "Secreto",
+            category: "Animales",
+            impostorIds: ["h"],
+            votes: { a: "b", b: "a" },
+            players: {
+                h: { nickname: "Host" },
+                a: { nickname: "A" },
+                b: { nickname: "B" }
+            }
+        };
+        const pub = publicRoomState(room);
+        expect(pub.voters.sort()).toEqual(["a", "b"]);
+    });
+
+    it("returns an empty voters array when no one has voted", () => {
+        const room = {
+            code: "ROOM",
+            host: "h",
+            phase: PHASES.GAME,
+            impostorCount: 1,
+            currentRound: 1,
+            votes: {},
+            players: { h: { nickname: "Host" } }
+        };
+        expect(publicRoomState(room).voters).toEqual([]);
     });
 });

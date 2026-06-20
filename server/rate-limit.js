@@ -23,6 +23,5 @@ export const DEFAULT_RATE_LIMITS = Object.freeze({
     joinRoom: { windowMs: 1000, max: 1 },
     setImpostorCount: { windowMs: 1000, max: 3 },
     startGame: { windowMs: 1000, max: 1 },
-    startVoting: { windowMs: 1000, max: 1 },
-    vote: { windowMs: 1000, max: 1 }
+    vote: { windowMs: 1000, max: 3 }
 });

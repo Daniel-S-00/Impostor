@@ -5,8 +5,7 @@ export const ROLES = Object.freeze({
 
 export const PHASES = Object.freeze({
     LOBBY: "lobby",
-    GAME: "game",
-    VOTING: "voting"
+    GAME: "game"
 });
 
 export const WINNERS = Object.freeze({
@@ -124,6 +123,7 @@ export function publicRoomState(room) {
         phase: room.phase,
         impostorCount: room.impostorCount,
         currentRound: room.currentRound,
+        voters: Object.keys(room.votes || {}),
         players: Object.fromEntries(
             Object.entries(room.players).map(([id, p]) => [id, { nickname: p.nickname }])
         )
