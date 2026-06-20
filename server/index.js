@@ -16,6 +16,7 @@ import {
     isValidRoomCode,
     publicRoomState
 } from "./game-logic.js";
+import { createRateLimiter, DEFAULT_RATE_LIMITS } from "./rate-limit.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,23 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, "public")));
 
 const rooms = {};
+
+const limiters = {};
+function getLimiter(event) {
+    if (!limiters[event]) {
+        const cfg = DEFAULT_RATE_LIMITS[event];
+        limiters[event] = createRateLimiter({ windowMs: cfg.windowMs, max: cfg.max });
+    }
+    return limiters[event];
+}
+
+function checkRate(socket, event) {
+    if (!getLimiter(event)(socket.id)) {
+        sendError(socket, "Demasiadas solicitudes. Espera un momento.");
+        return false;
+    }
+    return true;
+}
 
 function getRoom(code) {
     return rooms[code] || null;
@@ -154,6 +172,7 @@ io.on("connection", (socket) => {
     console.log("Player connected:", socket.id);
 
     socket.on("createRoom", ({ nickname } = {}) => {
+        if (!checkRate(socket, "createRoom")) return;
         if (!isValidNickname(nickname)) {
             return sendError(socket, "Ingresa un nickname válido (1–20 caracteres).");
         }
@@ -179,6 +198,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("joinRoom", ({ nickname, code } = {}) => {
+        if (!checkRate(socket, "joinRoom")) return;
         if (!isValidNickname(nickname)) {
             return sendError(socket, "Ingresa un nickname válido (1–20 caracteres).");
         }
@@ -199,6 +219,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("setImpostorCount", ({ code, count } = {}) => {
+        if (!checkRate(socket, "setImpostorCount")) return;
         const room = getRoom(code);
         if (!room) return sendError(socket, "La sala no existe.");
         if (!isHost(room, socket.id)) {
@@ -213,6 +234,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("startGame", ({ code } = {}) => {
+        if (!checkRate(socket, "startGame")) return;
         const room = getRoom(code);
         if (!room) return sendError(socket, "La sala no existe.");
         if (!isHost(room, socket.id)) {
@@ -234,6 +256,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("startVoting", ({ code } = {}) => {
+        if (!checkRate(socket, "startVoting")) return;
         const room = getRoom(code);
         if (!room) return sendError(socket, "La sala no existe.");
         if (!isHost(room, socket.id)) {
@@ -253,6 +276,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("vote", ({ code, targetId } = {}) => {
+        if (!checkRate(socket, "vote")) return;
         const room = getRoom(code);
         if (!room || room.phase !== PHASES.VOTING) return;
         if (!room.players[targetId]) return;

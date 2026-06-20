@@ -28,12 +28,16 @@ the Impostor is expelled; the Impostor wins if they outnumber the crew.
 Impostor-online/
 ├── AGENTS.md                  # this file
 ├── README.md                  # user-facing docs
+├── DEPLOY.md                  # Render + Cloudflare Tunnel deployment guide
+├── render.yaml                # Render Blueprint (infra-as-code)
 ├── .gitignore
 └── server/
     ├── package.json
     ├── index.js               # server bootstrap + socket handlers
     ├── game-logic.js          # pure game logic (importable, testable)
     ├── game-logic.test.js     # vitest tests for game-logic
+    ├── rate-limit.js          # per-socket rate limiter
+    ├── rate-limit.test.js     # vitest tests for rate limiter
     ├── words.js               # Spanish word lists by category
     ├── LICENSE                # ISC license
     └── public/
