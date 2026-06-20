@@ -79,22 +79,25 @@ function resetRoomForNewRound(room) {
     room.word = null;
     for (const id of Object.keys(room.players)) {
         delete room.players[id].role;
+        delete room.players[id].expelled;
     }
 }
 
 function dealCards(room) {
-    const playerIds = Object.keys(room.players);
-    const impostorIds = pickImpostors(playerIds, room.impostorCount);
+    const activeIds = Object.keys(room.players).filter((id) => !room.players[id].expelled);
+    const impostorIds = pickImpostors(activeIds, room.impostorCount);
     const { category, word } = pickWord(words);
 
     room.impostorIds = impostorIds;
     room.category = category;
     room.word = word;
 
-    for (const id of playerIds) {
+    for (const id of activeIds) {
         const isImpostor = impostorIds.includes(id);
+        const player = room.players[id];
+        player.role = isImpostor ? ROLES.IMPOSTOR : ROLES.CREWMATE;
         const payload = {
-            role: isImpostor ? ROLES.IMPOSTOR : ROLES.CREWMATE,
+            role: player.role,
             category
         };
         if (!isImpostor) {
@@ -144,7 +147,9 @@ function finishVoting(code) {
     const expelledNickname = expelledPlayer ? expelledPlayer.nickname : "Jugador";
     const wasImpostor = expelledPlayer ? expelledPlayer.role === ROLES.IMPOSTOR : false;
 
-    delete room.players[expelledId];
+    if (expelledPlayer) {
+        expelledPlayer.expelled = true;
+    }
     delete room.votes[expelledId];
 
     io.to(code).emit("votingResult", {
@@ -156,7 +161,6 @@ function finishVoting(code) {
     const expelledSocket = io.sockets.sockets.get(expelledId);
     if (expelledSocket) {
         expelledSocket.emit("youWereExpelled", { wasImpostor });
-        expelledSocket.leave(code);
     }
 
     room.votes = {};
@@ -244,9 +248,9 @@ io.on("connection", (socket) => {
         if (room.phase !== PHASES.LOBBY) {
             return sendError(socket, "La partida ya está en curso.");
         }
-        const playerIds = Object.keys(room.players);
-        if (playerIds.length < 2) {
-            return sendError(socket, "Se necesitan al menos 2 jugadores para iniciar.");
+        const activeCount = Object.values(room.players).filter((p) => !p.expelled).length;
+        if (activeCount < 2) {
+            return sendError(socket, "Se necesitan al menos 2 jugadores activos para iniciar.");
         }
 
         room.currentRound += 1;
@@ -260,14 +264,15 @@ io.on("connection", (socket) => {
         if (!checkRate(socket, "vote")) return;
         const room = getRoom(code);
         if (!room || room.phase !== PHASES.GAME) return;
-        if (!room.players[targetId]) return;
+        if (!room.players[targetId] || room.players[targetId].expelled) return;
         if (targetId === socket.id) return;
+        if (room.players[socket.id] && room.players[socket.id].expelled) return;
 
         room.votes[socket.id] = targetId;
         broadcastRoom(room);
 
-        const aliveCount = Object.keys(room.players).length;
-        if (Object.keys(room.votes).length === aliveCount) {
+        const activeCount = Object.values(room.players).filter((p) => !p.expelled).length;
+        if (Object.keys(room.votes).length === activeCount) {
             finishVoting(code);
         }
     });

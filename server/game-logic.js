@@ -90,11 +90,11 @@ export function tallyVotes(votes) {
 
 export function checkWin(players) {
     if (!players || typeof players !== "object") return null;
-    const ids = Object.keys(players);
-    if (ids.length === 0) return null;
+    const activeIds = Object.keys(players).filter((id) => !players[id].expelled);
+    if (activeIds.length === 0) return null;
 
-    const impostorsAlive = ids.filter((id) => players[id].role === ROLES.IMPOSTOR);
-    const crewAlive = ids.filter((id) => players[id].role === ROLES.CREWMATE);
+    const impostorsAlive = activeIds.filter((id) => players[id].role === ROLES.IMPOSTOR);
+    const crewAlive = activeIds.filter((id) => players[id].role === ROLES.CREWMATE);
 
     if (impostorsAlive.length === 0) {
         return { winner: WINNERS.CREW, reason: "all_impostors_expelled" };
@@ -125,7 +125,13 @@ export function publicRoomState(room) {
         currentRound: room.currentRound,
         voters: Object.keys(room.votes || {}),
         players: Object.fromEntries(
-            Object.entries(room.players).map(([id, p]) => [id, { nickname: p.nickname }])
+            Object.entries(room.players).map(([id, p]) => [
+                id,
+                {
+                    nickname: p.nickname,
+                    expelled: Boolean(p.expelled)
+                }
+            ])
         )
     };
 }

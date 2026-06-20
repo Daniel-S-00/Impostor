@@ -324,6 +324,9 @@
             left.appendChild(name);
 
             const isMe = id === state.myId;
+            const mePlayer = state.room.players[state.myId];
+            const meExpelled = Boolean(mePlayer && mePlayer.expelled);
+
             if (isMe) {
                 const meBadge = document.createElement("span");
                 meBadge.className = "badge you";
@@ -336,11 +339,21 @@
                 left.appendChild(hostBadge);
             }
 
+            if (player.expelled) {
+                const expelledBadge = document.createElement("span");
+                expelledBadge.className = "badge";
+                expelledBadge.style.background = "var(--primary)";
+                expelledBadge.style.color = "white";
+                expelledBadge.textContent = "Expulsado";
+                left.appendChild(expelledBadge);
+            }
+
             li.appendChild(left);
 
-            if (showVoteButton && !isMe) {
+            const canVote = showVoteButton && !isMe && !player.expelled && !meExpelled;
+            if (canVote) {
                 const votedAlready = (state.room.voters || []).includes(id);
-                if (phase === "game" && votedAlready && !isMe) {
+                if (phase === "game" && votedAlready) {
                     const votedBadge = document.createElement("span");
                     votedBadge.className = "badge voted";
                     votedBadge.textContent = "Votó";
@@ -401,6 +414,23 @@
             const div = document.getElementById("role");
             const toggleBtn = document.getElementById("toggleCardBtn");
 
+            const mePlayer = state.room && state.room.players[state.myId];
+            const meExpelled = Boolean(mePlayer && mePlayer.expelled);
+
+            if (meExpelled) {
+                div.innerHTML = '<div class="muted">Has sido expulsado.<br>Espera la siguiente ronda.</div>';
+                toggleBtn.classList.add("hidden");
+                return;
+            }
+
+            if (!state.card) {
+                div.innerHTML = '<div class="muted">Esperando…</div>';
+                toggleBtn.classList.add("hidden");
+                return;
+            }
+
+            toggleBtn.classList.remove("hidden");
+
             if (state.cardHidden) {
                 div.innerHTML = '<div class="muted">Carta oculta</div>';
                 toggleBtn.textContent = "Mostrar carta";
@@ -416,7 +446,7 @@
             } else {
                 div.innerHTML =
                     '<div class="label">TRIPULANTE</div>' +
-                    `<p>Categoría: <b>${escapeHtml(state.card.category)}</b></p>` +
+                    `<p>Categoría: <b>${escapeHtml(state.card.category)}</b></p>' +
                     `<p class="word">Palabra: <b>${escapeHtml(state.card.word)}</b></p>`;
             }
             toggleBtn.textContent = "Ocultar carta";
@@ -431,13 +461,19 @@
                 ul.appendChild(buildPlayerRow({ id, player: p, phase: "game", showVoteButton: true }));
             }
 
-            const total = Object.keys(state.room.players).length;
+            const totalPlayers = Object.values(state.room.players);
+            const activeTotal = totalPlayers.filter((p) => !p.expelled).length;
             const votedCount = (state.room.voters || []).length;
-            document.getElementById("voteProgress").textContent = `(${votedCount} / ${total})`;
+            document.getElementById("voteProgress").textContent = `(${votedCount} / ${activeTotal})`;
 
             const waiting = document.getElementById("waitingMessage");
+            const me = state.room.players[state.myId];
+            const meExpelled = Boolean(me && me.expelled);
             const myVoted = (state.room.voters || []).includes(state.myId);
-            if (votedCount < total) {
+
+            if (meExpelled) {
+                waiting.textContent = "Estás observando la partida como espectador.";
+            } else if (votedCount < activeTotal) {
                 waiting.textContent = myVoted
                     ? "Voto enviado. Esperando a los demás…"
                     : "Elige a quién expulsar. Puedes cambiar tu voto en cualquier momento.";
@@ -502,9 +538,12 @@
 
         socket.on("roomUpdate", (room) => {
             state.room = room;
+            const me = room.players[state.myId];
             if (room.phase === "lobby") {
                 state.card = null;
                 state.cardHidden = false;
+                state._lastVoteFor = null;
+            } else if (me && me.expelled) {
                 state._lastVoteFor = null;
             }
             renderView();
@@ -533,8 +572,7 @@
 
         socket.on("youWereExpelled", (data) => {
             const verdict = data.wasImpostor ? "Eras el Impostor 😈" : "No eras el Impostor 😇";
-            alert(`Has sido expulsado de la partida.\n${verdict}`);
-            resetToLogin();
+            alert(`Has sido expulsado de la partida.\n${verdict}\nEspera la siguiente ronda como espectador.`);
         });
 
         socket.on("errorMessage", ({ message } = {}) => {

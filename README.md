@@ -23,9 +23,13 @@ wins if they outnumber the crew.
   - **Tie** → no one is expelled, the host can re-trigger voting.
   - **Majority** → the player with the most votes is expelled. The room is told
     whether they were an Impostor.
-- After each expulsion the win conditions are checked:
+- After each expulsion the win conditions are checked (only counting
+  non-expelled players):
   - No Impostors left → **Tripulantes** win.
   - Impostors ≥ remaining crew → **Impostores** win.
+- The expelled player stays in the room as a spectator (no card, no vote
+  button) and waits for the next round. When the room resets to the lobby the
+  expelled flag is cleared, so they are an active player again.
 - After a round (tie or otherwise) the room resets to the lobby and the host can
   start the next round.
 

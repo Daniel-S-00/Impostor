@@ -126,14 +126,21 @@ round) so clients can show progress. **Never** include `role`, `word`, or
      └──────────────────────────────────────────────────┘
 ```
 
-- `lobby` → host can change impostor count and start the round.
-- `game` → cards have been dealt. The player list is visible and every player
-  has an inline vote button. Votes are accepted any time during `game`.
-  Changing a vote overwrites the previous one.
-- The server runs `finishVoting` as soon as `voters.length === playerCount`:
+- `lobby` → host can change impostor count and start the round. The host can
+  start a new round only when there are at least 2 **active** players.
+- `game` → cards have been dealt to active players. The player list is visible
+  and every non-expelled player has an inline vote button. Votes are accepted
+  any time during `game`. Changing a vote overwrites the previous one.
+  Expelled players spectate (no card, no vote button) and stay in the room
+  until the round ends.
+- The server runs `finishVoting` as soon as `voters.length === activePlayerCount`:
   - Tie → votes cleared, room stays in `game` for everyone to re-vote.
-  - Non-tie, no win → room resets to `lobby` (next round).
-  - Non-tie, win → `gameEnded` emitted, then room resets to `lobby`.
+  - Non-tie → the most-voted player is **marked `expelled: true`** (kept in
+    `room.players` as a spectator, not kicked). `checkWin` then counts only
+    active players: if no impostors remain the crew wins; if active impostors
+    ≥ active crew the impostors win. Otherwise the room resets to `lobby` for
+    the next round. `resetRoomForNewRound` clears every player's `expelled`
+    flag so the next round starts fresh.
 
 ## Server-side rules (do not skip)
 

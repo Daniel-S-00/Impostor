@@ -155,6 +155,55 @@ describe("checkWin", () => {
     it("returns null for an empty player list", () => {
         expect(checkWin({})).toBeNull();
     });
+
+    it("ignores expelled players when counting impostors and crew", () => {
+        const players = {
+            a: { role: ROLES.IMPOSTOR, expelled: true },
+            b: { role: ROLES.CREWMATE },
+            c: { role: ROLES.CREWMATE }
+        };
+        const win = checkWin(players);
+        expect(win).not.toBeNull();
+        expect(win.winner).toBe(WINNERS.CREW);
+    });
+
+    it("returns null when every active player is gone (degenerate, unexpelled in lobby)", () => {
+        const players = {
+            a: { role: ROLES.IMPOSTOR, expelled: true },
+            b: { role: ROLES.CREWMATE, expelled: true }
+        };
+        expect(checkWin(players)).toBeNull();
+    });
+
+    it("reports impostors win when only impostors are still active", () => {
+        const players = {
+            a: { role: ROLES.IMPOSTOR },
+            b: { role: ROLES.CREWMATE, expelled: true }
+        };
+        const win = checkWin(players);
+        expect(win).not.toBeNull();
+        expect(win.winner).toBe(WINNERS.IMPOSTORS);
+    });
+
+    it("reports impostors win when active impostors >= active crew", () => {
+        const players = {
+            a: { role: ROLES.IMPOSTOR },
+            b: { role: ROLES.CREWMATE },
+            c: { role: ROLES.CREWMATE, expelled: true }
+        };
+        const win = checkWin(players);
+        expect(win).not.toBeNull();
+        expect(win.winner).toBe(WINNERS.IMPOSTORS);
+    });
+
+    it("returns null when the game should still continue", () => {
+        const players = {
+            a: { role: ROLES.IMPOSTOR },
+            b: { role: ROLES.CREWMATE },
+            c: { role: ROLES.CREWMATE }
+        };
+        expect(checkWin(players)).toBeNull();
+    });
 });
 
 describe("isValidNickname", () => {
@@ -253,5 +302,23 @@ describe("publicRoomState", () => {
             players: { h: { nickname: "Host" } }
         };
         expect(publicRoomState(room).voters).toEqual([]);
+    });
+
+    it("exposes the expelled flag per player", () => {
+        const room = {
+            code: "ROOM",
+            host: "h",
+            phase: PHASES.GAME,
+            impostorCount: 1,
+            currentRound: 1,
+            votes: {},
+            players: {
+                h: { nickname: "Host" },
+                o: { nickname: "Otro", expelled: true }
+            }
+        };
+        const pub = publicRoomState(room);
+        expect(pub.players.h.expelled).toBe(false);
+        expect(pub.players.o.expelled).toBe(true);
     });
 });
