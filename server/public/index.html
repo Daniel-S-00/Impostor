@@ -1,232 +1,503 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Impostor Online</title>
     <script src="/socket.io/socket.io.js"></script>
-
     <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #020617;
+            --surface-2: #1e293b;
+            --border: #334155;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --primary: #ef4444;
+            --primary-hover: #dc2626;
+            --secondary: #2563eb;
+            --secondary-hover: #1d4ed8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            background: #0f172a;
-            color: #e5e7eb;
-            font-family: Arial;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            margin: 0;
+            padding: 16px;
         }
 
         .card {
-            background: #020617;
-            padding: 20px;
+            background: var(--surface);
+            padding: 24px;
             border-radius: 12px;
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
         }
 
-        input,
-        button {
+        h2, h3 { margin-top: 0; }
+
+        .muted { color: var(--muted); font-size: 0.9rem; }
+
+        input, select, button {
             width: 100%;
-            padding: 10px;
+            padding: 10px 12px;
             margin-top: 10px;
             border-radius: 6px;
-            border: none;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
         }
+
+        input:focus, select:focus { outline: 2px solid var(--secondary); }
 
         button {
-            background: #ef4444;
+            background: var(--primary);
             color: white;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
+            border: none;
+            transition: background 0.15s ease;
         }
+        button:hover:not(:disabled) { background: var(--primary-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .secondary {
-            background: #2563eb;
+        button.secondary { background: var(--secondary); }
+        button.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
+
+        button.ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
         }
+        button.ghost:hover:not(:disabled) { background: var(--surface-2); }
 
         ul {
             list-style: none;
             padding: 0;
+            margin: 12px 0;
         }
 
         li {
-            background: #1e293b;
+            background: var(--surface-2);
             margin-top: 6px;
-            padding: 8px;
+            padding: 10px 12px;
             border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
 
-        .hidden {
-            display: none;
+        .badge {
+            background: var(--warning);
+            color: #1f2937;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            text-transform: uppercase;
         }
+
+        .hidden { display: none !important; }
 
         .role {
-            font-size: 26px;
             text-align: center;
-            margin-top: 20px;
+            margin: 16px 0 20px;
+        }
+        .role .label {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .role.impostor .label { color: var(--primary); }
+        .role.crewmate .label { color: var(--success); }
+        .role .word {
+            font-size: 1.4rem;
+            margin: 8px 0 0;
+            color: var(--text);
         }
 
-        .impostor {
-            color: #ef4444;
+        .host-controls {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .host-controls label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin-top: 8px;
         }
 
-        .amigo {
-            color: #22c55e;
+        .vote-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
         }
+        .vote-grid button { margin: 0; }
+
+        .center { text-align: center; }
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid var(--muted);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-
 <body>
 
-    <div class="card" id="login">
+    <div class="card hidden" id="login">
         <h2>Impostor Online</h2>
-        <input id="nickname" placeholder="Nickname">
-        <button onclick="createRoom()">Crear sala</button>
-
-        <input id="roomCode" placeholder="Código de sala">
-        <button onclick="joinRoom()">Unirse</button>
+        <p class="muted">Descubre al impostor antes de que sea demasiado tarde.</p>
+        <input id="nickname" placeholder="Tu nickname" maxlength="20" autocomplete="off" />
+        <button id="createBtn">Crear sala</button>
+        <input id="roomCode" placeholder="Código de sala" maxlength="4" autocomplete="off" style="text-transform: uppercase;" />
+        <button id="joinBtn" class="secondary">Unirse a sala</button>
     </div>
 
-    <div class="card hidden" id="room">
-        <h3>Sala: <span id="code"></span></h3>
-        <ul id="players"></ul>
-        <button id="startBtn" class="secondary hidden" onclick="startGame()">Iniciar partida</button>
+    <div class="card hidden" id="lobby">
+        <h3>Sala <span id="lobbyCode"></span></h3>
+        <p class="muted" id="roundInfo">Sala de espera</p>
+        <ul id="playerList"></ul>
+        <div class="host-controls hidden" id="hostControls">
+            <label for="impostorCount">Cantidad de impostores</label>
+            <select id="impostorCount">
+                <option value="1">1 impostor</option>
+                <option value="2">2 impostores</option>
+                <option value="3">3 impostores</option>
+            </select>
+            <button id="startBtn" class="secondary" disabled>Iniciar partida</button>
+        </div>
+        <p class="muted" id="lobbyStatus"></p>
     </div>
 
-    <div class="card hidden" id="game">
+    <div class="card hidden" id="cardView">
         <h3>Tu carta</h3>
-        <div id="role" class="role"></div>
+        <div class="role" id="role"></div>
+        <button id="hideCardBtn" class="ghost">Ocultar carta</button>
+        <div class="host-controls hidden" id="cardHostControls">
+            <button id="startVotingFromCardBtn" class="secondary">Iniciar votación</button>
+        </div>
+    </div>
+
+    <div class="card hidden" id="hiddenView">
+        <h3 class="center">Carta oculta</h3>
+        <p class="muted center" id="hiddenMessage"></p>
+        <button id="showCardBtn" class="ghost">Mostrar carta</button>
+        <div class="host-controls hidden" id="hiddenHostControls">
+            <button id="startVotingFromHiddenBtn" class="secondary">Iniciar votación</button>
+        </div>
     </div>
 
     <div class="card hidden" id="voting">
         <h3>Votación</h3>
-        <p>Elige a quién expulsar</p>
-        <div id="voteButtons"></div>
+        <p class="muted">Elige a quién expulsar.</p>
+        <div class="vote-grid" id="voteButtons"></div>
     </div>
 
+    <div class="card hidden" id="voted">
+        <h3 class="center"><span class="spinner"></span>Voto enviado</h3>
+        <p class="muted center">Esperando a los demás jugadores…</p>
+    </div>
 
     <script>
         const socket = io();
-        let currentRoom = null;
-        let myId = null;
+        const state = {
+            myId: null,
+            currentRoom: null,
+            room: null,
+            card: null,
+            cardHidden: false,
+            hasVoted: false
+        };
 
-        socket.on("connect", () => myId = socket.id);
+        const views = ["login", "lobby", "cardView", "hiddenView", "voting", "voted"];
 
-        function nicknameValue() {
+        function showView(name) {
+            for (const v of views) {
+                document.getElementById(v).classList.toggle("hidden", v !== name);
+            }
+        }
+
+        function isHost() {
+            return state.room && state.myId && state.room.host === state.myId;
+        }
+
+        function resetToLogin() {
+            state.currentRoom = null;
+            state.room = null;
+            state.card = null;
+            state.cardHidden = false;
+            state.hasVoted = false;
+            document.getElementById("roomCode").value = "";
+            showView("login");
+        }
+
+        function readNickname() {
             const n = document.getElementById("nickname").value.trim();
-            if (!n) { alert("Escribe un nickname"); throw ""; }
+            if (!n) {
+                alert("Escribe un nickname.");
+                return null;
+            }
+            if (n.length > 20) {
+                alert("El nickname debe tener máximo 20 caracteres.");
+                return null;
+            }
             return n;
         }
 
-        function createRoom() {
-            socket.emit("createRoom", { nickname: nicknameValue() });
+        function readRoomCode() {
+            const c = document.getElementById("roomCode").value.trim().toUpperCase();
+            if (!/^[A-Z0-9]{4}$/.test(c)) {
+                alert("El código de sala debe tener 4 caracteres.");
+                return null;
+            }
+            return c;
         }
 
-        function joinRoom() {
-            socket.emit("joinRoom", {
-                nickname: nicknameValue(),
-                code: document.getElementById("roomCode").value.trim().toUpperCase()
+        function renderLobby() {
+            document.getElementById("lobbyCode").textContent = state.currentRoom;
+            document.getElementById("roundInfo").textContent =
+                state.room.currentRound > 0
+                    ? `Ronda ${state.room.currentRound} · Listos para la siguiente`
+                    : "Sala de espera";
+
+            const ul = document.getElementById("playerList");
+            ul.innerHTML = "";
+            for (const [id, p] of Object.entries(state.room.players)) {
+                const li = document.createElement("li");
+                const name = document.createElement("span");
+                name.textContent = p.nickname;
+                li.appendChild(name);
+                if (id === state.room.host) {
+                    const badge = document.createElement("span");
+                    badge.className = "badge";
+                    badge.textContent = "Anfitrión";
+                    li.appendChild(badge);
+                }
+                ul.appendChild(li);
+            }
+
+            const hostControls = document.getElementById("hostControls");
+            const status = document.getElementById("lobbyStatus");
+            const startBtn = document.getElementById("startBtn");
+            const playerCount = Object.keys(state.room.players).length;
+
+            if (isHost()) {
+                hostControls.classList.remove("hidden");
+                document.getElementById("impostorCount").value = String(state.room.impostorCount);
+                const maxImpostors = Math.min(3, Math.max(1, playerCount - 1));
+                for (const opt of document.getElementById("impostorCount").options) {
+                    opt.disabled = Number(opt.value) > maxImpostors;
+                }
+                startBtn.disabled = playerCount < 2;
+                status.textContent = playerCount < 2
+                    ? "Esperando al menos 2 jugadores…"
+                    : "Cuando estén todos, inicia la partida.";
+            } else {
+                hostControls.classList.add("hidden");
+                status.textContent = "Esperando a que el anfitrión inicie la partida…";
+            }
+        }
+
+        function renderCard() {
+            const div = document.getElementById("role");
+            div.className = "role " + (state.card.role === "impostor" ? "impostor" : "crewmate");
+            if (state.card.role === "impostor") {
+                div.innerHTML =
+                    '<div class="label">IMPOSTOR</div>' +
+                    `<p>Categoría: <b>${escapeHtml(state.card.category)}</b></p>` +
+                    '<p class="muted">No conoces la palabra secreta. Engaña a los demás.</p>';
+            } else {
+                div.innerHTML =
+                    '<div class="label">TRIPULANTE</div>' +
+                    `<p>Categoría: <b>${escapeHtml(state.card.category)}</b></p>` +
+                    `<p class="word">Palabra: <b>${escapeHtml(state.card.word)}</b></p>`;
+            }
+            document.getElementById("cardHostControls").classList.toggle("hidden", !isHost());
+        }
+
+        function renderHidden() {
+            const msg = document.getElementById("hiddenMessage");
+            msg.textContent = isHost()
+                ? "Cuando todos estén listos, inicia la votación."
+                : "Esperando a que el anfitrión inicie la votación…";
+            document.getElementById("hiddenHostControls").classList.toggle("hidden", !isHost());
+        }
+
+        function renderVoting() {
+            const container = document.getElementById("voteButtons");
+            container.innerHTML = "";
+            for (const [id, p] of Object.entries(state.room.players)) {
+                if (id === state.myId) continue;
+                const btn = document.createElement("button");
+                btn.textContent = p.nickname;
+                btn.onclick = () => {
+                    socket.emit("vote", { code: state.currentRoom, targetId: id });
+                    state.hasVoted = true;
+                    renderView();
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function renderView() {
+            if (!state.currentRoom) {
+                showView("login");
+                return;
+            }
+            const phase = state.room && state.room.phase;
+            if (phase === "lobby") {
+                showView("lobby");
+                renderLobby();
+            } else if (phase === "game") {
+                if (state.card && !state.cardHidden) {
+                    showView("cardView");
+                    renderCard();
+                } else {
+                    showView("hiddenView");
+                    renderHidden();
+                }
+            } else if (phase === "voting") {
+                if (state.hasVoted) {
+                    showView("voted");
+                } else {
+                    showView("voting");
+                    renderVoting();
+                }
+            } else {
+                showView("lobby");
+            }
+        }
+
+        document.getElementById("createBtn").onclick = () => {
+            const nickname = readNickname();
+            if (nickname) socket.emit("createRoom", { nickname });
+        };
+
+        document.getElementById("joinBtn").onclick = () => {
+            const nickname = readNickname();
+            const code = readRoomCode();
+            if (nickname && code) socket.emit("joinRoom", { nickname, code });
+        };
+
+        document.getElementById("impostorCount").onchange = (e) => {
+            if (!state.currentRoom) return;
+            socket.emit("setImpostorCount", {
+                code: state.currentRoom,
+                count: Number(e.target.value)
             });
-        }
+        };
 
-        function startGame() {
-            socket.emit("startGame", currentRoom);
-        }
+        document.getElementById("startBtn").onclick = () => {
+            if (!state.currentRoom) return;
+            socket.emit("startGame", { code: state.currentRoom });
+        };
+
+        document.getElementById("hideCardBtn").onclick = () => {
+            state.cardHidden = true;
+            renderView();
+        };
+
+        document.getElementById("showCardBtn").onclick = () => {
+            state.cardHidden = false;
+            renderView();
+        };
+
+        document.getElementById("startVotingFromCardBtn").onclick = () => {
+            if (!state.currentRoom) return;
+            socket.emit("startVoting", { code: state.currentRoom });
+        };
+
+        document.getElementById("startVotingFromHiddenBtn").onclick = () => {
+            if (!state.currentRoom) return;
+            socket.emit("startVoting", { code: state.currentRoom });
+        };
+
+        socket.on("connect", () => {
+            state.myId = socket.id;
+        });
 
         socket.on("roomCreated", ({ code }) => {
-            currentRoom = code;
-            document.getElementById("code").textContent = code;
-            document.getElementById("login").classList.add("hidden");
-            document.getElementById("room").classList.remove("hidden");
+            state.currentRoom = code;
         });
 
         socket.on("roomUpdate", (room) => {
-            if (!room) return;
-            const ul = document.getElementById("players");
-            ul.innerHTML = "";
-
-            Object.values(room.players).forEach(p => {
-                const li = document.createElement("li");
-                li.textContent = p.nickname;
-                ul.appendChild(li);
-            });
-
-            if (room.host === myId) {
-                document.getElementById("startBtn").classList.remove("hidden");
+            state.room = room;
+            if (room.phase === "lobby") {
+                state.card = null;
+                state.cardHidden = false;
+                state.hasVoted = false;
             }
+            renderView();
         });
 
-        socket.on("card", (data) => {
-            document.getElementById("room").classList.add("hidden");
-            document.getElementById("game").classList.remove("hidden");
-
-            const div = document.getElementById("role");
-
-            if (data.role === "impostor") {
-                div.innerHTML = `
-            <div class="impostor">IMPOSTOR</div>
-            <p>Categoría: <b>${data.category}</b></p>
-        `;
-            } else {
-                div.innerHTML = `
-            <div class="amigo">AMIGO</div>
-            <p>Categoría: <b>${data.category}</b></p>
-            <p>Palabra: <b>${data.word}</b></p>
-        `;
-            }
+        socket.on("card", (card) => {
+            state.card = card;
+            state.cardHidden = false;
+            state.hasVoted = false;
+            renderView();
         });
 
-        socket.on("votingStarted", ({ players }) => {
-            document.getElementById("game").classList.add("hidden");
-            document.getElementById("voting").classList.remove("hidden");
-
-            const container = document.getElementById("voteButtons");
-            container.innerHTML = "";
-
-            Object.entries(players).forEach(([id, player]) => {
-                if (id === myId) return; // no votarse a sí mismo
-
-                const btn = document.createElement("button");
-                btn.textContent = player.nickname;
-
-                btn.onclick = () => {
-                    socket.emit("vote", {
-                        code: currentRoom,
-                        targetId: id
-                    });
-
-                    container.innerHTML = "<p>🗳️ Voto enviado</p>";
-                };
-
-                container.appendChild(btn);
-            });
+        socket.on("votingStarted", (room) => {
+            state.room = room;
+            state.hasVoted = false;
+            renderView();
         });
 
         socket.on("votingResult", (data) => {
-            document.getElementById("voting").classList.add("hidden");
-
             if (data.tie) {
-                alert("Empate. Nadie fue expulsado.");
-                return;
+                alert("Empate. Nadie fue expulsado. Pueden volver a votar.");
+            } else {
+                const verdict = data.wasImpostor ? "SÍ, era el Impostor 😈" : "NO, era inocente 😇";
+                alert(`Expulsado: ${data.expelled}\n${verdict}`);
             }
-
-            alert(
-                `Expulsado: ${data.expelled}\n` +
-                `¿Era impostor? ${data.wasImpostor ? "SÍ 😈" : "NO 😇"}`
-            );
         });
 
         socket.on("gameEnded", (data) => {
-            alert(`🎉 Juego terminado. Ganaron los ${data.winner.toUpperCase()}`);
+            const winnerLabel = data.winner === "crew" ? "los Tripulantes" : "los Impostores";
+            alert(`🎉 Juego terminado. Ganaron ${winnerLabel}.`);
         });
 
+        socket.on("youWereExpelled", (data) => {
+            const verdict = data.wasImpostor ? "Eras el Impostor 😈" : "No eras el Impostor 😇";
+            alert(`Has sido expulsado de la partida.\n${verdict}`);
+            resetToLogin();
+        });
 
+        socket.on("errorMessage", ({ message } = {}) => {
+            if (message) alert(message);
+        });
 
-
-        socket.on("errorMessage", alert);
+        renderView();
     </script>
-
 </body>
-
 </html>

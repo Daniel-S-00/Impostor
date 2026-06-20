@@ -1,4 +1,4 @@
-module.exports = {
+const words = {
     Animales: [
         "Perro", "Gato", "León", "Tigre", "Elefante", "Jirafa", "Cebra", "Mono", "Oso", "Lobo",
         "Zorro", "Conejo", "Venado", "Caballo", "Burro", "Vaca", "Toro", "Oveja", "Cabra", "Cerdo",
@@ -32,3 +32,5 @@ module.exports = {
         "Castillo", "Fortaleza", "Muralla", "Ruina", "Zona arqueológica", "Pirámide", "Observatorio", "Laboratorio", "Auditorio", "Congreso"
     ]
 };
+
+export default words;

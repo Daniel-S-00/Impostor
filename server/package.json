@@ -1,17 +1,27 @@
 {
-  "name": "server",
+  "name": "impostor-online",
   "version": "1.0.0",
-  "description": "",
+  "description": "Online multiplayer Impostor party game built with Node.js, Express and Socket.IO.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "keywords": [],
+  "keywords": [
+    "impostor",
+    "party-game",
+    "socket.io",
+    "express"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
   }
 }
