@@ -98,6 +98,7 @@ Client → server:
 | `setImpostorCount` | `{ code, count }`        | Host picks how many impostors (1–3).         |
 | `startGame`        | `{ code }`               | Host starts a new round (≥ 2 players).       |
 | `vote`             | `{ code, targetId }`     | Cast or change a vote. Cannot vote for yourself. The round auto-ends when everyone has voted. |
+| `leaveRoom`        | `{ code }`               | Voluntary exit. Removes the player, deletes their vote, migrates the host if needed, deletes the room if empty. |
 
 Server → client:
 

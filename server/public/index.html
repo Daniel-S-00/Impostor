@@ -229,6 +229,19 @@
             font-size: 0.85rem;
         }
 
+        .leave-btn {
+            width: auto;
+            padding: 6px 14px;
+            margin: 16px auto 0;
+            display: block;
+            font-size: 0.85rem;
+        }
+        .leave-btn:hover:not(:disabled) {
+            color: var(--primary);
+            border-color: var(--primary);
+            background: transparent;
+        }
+
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -310,6 +323,7 @@
             <button id="startBtn" class="secondary" disabled>Iniciar partida</button>
         </div>
         <p class="muted" id="lobbyStatus"></p>
+        <button id="leaveLobbyBtn" class="ghost leave-btn">Salir de la sala</button>
     </div>
 
     <div class="card hidden" id="gameView">
@@ -322,6 +336,7 @@
             <ul id="gamePlayerList"></ul>
             <p class="progress" id="waitingMessage"></p>
         </div>
+        <button id="leaveGameBtn" class="ghost leave-btn">Salir de la partida</button>
     </div>
 
     <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
@@ -712,6 +727,16 @@
             const code = readRoomCode();
             if (nickname && code) socket.emit("joinRoom", { nickname, code });
         };
+
+        function leaveCurrentRoom() {
+            if (!state.currentRoom) return;
+            const code = state.currentRoom;
+            socket.emit("leaveRoom", { code });
+            resetToLogin();
+        }
+
+        document.getElementById("leaveLobbyBtn").onclick = leaveCurrentRoom;
+        document.getElementById("leaveGameBtn").onclick = leaveCurrentRoom;
 
         document.getElementById("impostorCount").onchange = (e) => {
             if (!state.currentRoom) return;

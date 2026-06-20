@@ -289,6 +289,11 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("leaveRoom", ({ code } = {}) => {
+        if (!checkRate(socket, "leaveRoom")) return;
+        removePlayerFromRoom(socket, code);
+    });
+
     socket.on("disconnect", () => {
         console.log("Player disconnected:", socket.id);
         for (const code of Object.keys(rooms)) {

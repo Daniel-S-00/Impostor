@@ -94,6 +94,7 @@ Client → server:
 | `setImpostorCount` | `{ code, count }`             | Host only, lobby phase only.          |
 | `startGame`        | `{ code }`                    | Host only, lobby phase, ≥ 2 players.  |
 | `vote`             | `{ code, targetId }`          | Game phase only. Replaces any previous vote from the same socket. Cannot vote for yourself. |
+| `leaveRoom`        | `{ code }`                    | Voluntary exit. Removes the player, deletes their vote, migrates the host if needed, deletes the room if empty, and re-broadcasts the room list. |
 
 Server → client:
 
