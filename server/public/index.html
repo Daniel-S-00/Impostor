@@ -192,6 +192,45 @@
             font-size: 0.9rem;
             margin-top: 8px;
         }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 16px;
+            animation: fadeIn 0.15s ease;
+        }
+        .modal {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: scaleIn 0.15s ease;
+        }
+        .modal h3 { margin: 0 0 12px; }
+        .modal-body {
+            color: var(--text);
+            white-space: pre-line;
+            line-height: 1.5;
+            margin: 0 0 20px;
+        }
+        .modal button { margin: 0; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.96); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -235,6 +274,14 @@
             <h4>Jugadores <span class="muted" id="voteProgress"></span></h4>
             <ul id="gamePlayerList"></ul>
             <p class="progress" id="waitingMessage"></p>
+        </div>
+    </div>
+
+    <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
+        <div class="modal">
+            <h3 id="modalTitle"></h3>
+            <p id="modalBody" class="modal-body"></p>
+            <button id="modalOk" class="secondary">Aceptar</button>
         </div>
     </div>
 
@@ -291,14 +338,14 @@
 
         function readNickname() {
             const n = document.getElementById("nickname").value.trim();
-            if (!n) { alert("Escribe un nickname."); return null; }
-            if (n.length > 20) { alert("El nickname debe tener máximo 20 caracteres."); return null; }
+            if (!n) { showModal({ title: "Falta el nickname", body: "Escribe un nickname para continuar." }); return null; }
+            if (n.length > 20) { showModal({ title: "Nickname demasiado largo", body: "El nickname debe tener máximo 20 caracteres." }); return null; }
             return n;
         }
 
         function readRoomCode() {
             const c = document.getElementById("roomCode").value.trim().toUpperCase();
-            if (!/^[A-Z0-9]{4}$/.test(c)) { alert("El código de sala debe tener 4 caracteres."); return null; }
+            if (!/^[A-Z0-9]{4}$/.test(c)) { showModal({ title: "Código inválido", body: "El código de sala debe tener 4 caracteres alfanuméricos." }); return null; }
             return c;
         }
 
@@ -309,6 +356,50 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#39;");
+        }
+
+        let modalKeyHandler = null;
+
+        function showModal({ title, body, buttonText = "Aceptar", onClose = null } = {}) {
+            const modal = document.getElementById("modal");
+            const titleEl = document.getElementById("modalTitle");
+            const bodyEl = document.getElementById("modalBody");
+            const okBtn = document.getElementById("modalOk");
+
+            titleEl.textContent = title || "";
+            bodyEl.textContent = "";
+            if (body) {
+                const lines = String(body).split("\n");
+                lines.forEach((line, i) => {
+                    if (i > 0) bodyEl.appendChild(document.createElement("br"));
+                    bodyEl.appendChild(document.createTextNode(line));
+                });
+            }
+            okBtn.textContent = buttonText;
+
+            const close = () => {
+                modal.classList.add("hidden");
+                okBtn.onclick = null;
+                if (modalKeyHandler) {
+                    document.removeEventListener("keydown", modalKeyHandler);
+                    modalKeyHandler = null;
+                }
+                if (typeof onClose === "function") onClose();
+            };
+
+            const onKey = (e) => {
+                if (e.key === "Enter" || e.key === "Escape") {
+                    e.preventDefault();
+                    close();
+                }
+            };
+
+            modalKeyHandler = onKey;
+            okBtn.onclick = close;
+            document.addEventListener("keydown", onKey);
+
+            modal.classList.remove("hidden");
+            okBtn.focus();
         }
 
         function buildPlayerRow({ id, player, phase, showVoteButton }) {
@@ -558,25 +649,39 @@
 
         socket.on("votingResult", (data) => {
             if (data.tie) {
-                alert("Empate. Nadie fue expulsado. Vuelvan a votar.");
+                showModal({
+                    title: "Empate",
+                    body: "Nadie fue expulsado. Vuelvan a votar."
+                });
             } else {
                 const verdict = data.wasImpostor ? "SÍ, era el Impostor 😈" : "NO, era inocente 😇";
-                alert(`Expulsado: ${data.expelled}\n${verdict}`);
+                showModal({
+                    title: "Resultado de la ronda",
+                    body: `Expulsado: ${data.expelled}\n${verdict}`
+                });
             }
         });
 
         socket.on("gameEnded", (data) => {
             const winnerLabel = data.winner === "crew" ? "los Tripulantes" : "los Impostores";
-            alert(`🎉 Juego terminado. Ganaron ${winnerLabel}.`);
+            showModal({
+                title: "🎉 Juego terminado",
+                body: `Ganaron ${winnerLabel}.`,
+                buttonText: "Continuar"
+            });
         });
 
         socket.on("youWereExpelled", (data) => {
             const verdict = data.wasImpostor ? "Eras el Impostor 😈" : "No eras el Impostor 😇";
-            alert(`Has sido expulsado de la partida.\n${verdict}\nEspera la siguiente ronda como espectador.`);
+            showModal({
+                title: "Has sido expulsado",
+                body: `${verdict}\n\nEspera la siguiente ronda como espectador.`,
+                buttonText: "Entendido"
+            });
         });
 
         socket.on("errorMessage", ({ message } = {}) => {
-            if (message) alert(message);
+            if (message) showModal({ title: "Error", body: message });
         });
 
         renderView();
