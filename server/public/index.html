@@ -193,6 +193,42 @@
             margin-top: 8px;
         }
 
+        li.room {
+            background: var(--surface-2);
+            margin-top: 6px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        li.room .room-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        li.room .host {
+            font-weight: 600;
+        }
+        li.room .code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            color: var(--text);
+        }
+        li.room .meta {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+        li.room .join-btn {
+            width: auto;
+            padding: 6px 14px;
+            margin: 0;
+            font-size: 0.85rem;
+        }
+
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -240,8 +276,19 @@
         <p class="muted">Descubre al impostor antes de que sea demasiado tarde.</p>
         <input id="nickname" placeholder="Tu nickname" maxlength="20" autocomplete="off" />
         <button id="createBtn">Crear sala</button>
-        <input id="roomCode" placeholder="Código de sala" maxlength="4" autocomplete="off" style="text-transform: uppercase;" />
-        <button id="joinBtn" class="secondary">Unirse a sala</button>
+
+        <div class="section">
+            <h4>Salas disponibles</h4>
+            <ul id="roomList"></ul>
+            <p class="muted hidden" id="noRoomsMsg">No hay salas abiertas. Crea una.</p>
+            <button id="quickJoinBtn" class="secondary" disabled>Unirse al azar</button>
+        </div>
+
+        <div class="section">
+            <h4>¿Tienes un código?</h4>
+            <input id="roomCode" placeholder="Código de sala" maxlength="4" autocomplete="off" style="text-transform: uppercase;" />
+            <button id="joinBtn" class="secondary">Unirse con código</button>
+        </div>
     </div>
 
     <div class="card hidden" id="lobby">
@@ -292,7 +339,8 @@
             currentRoom: null,
             room: null,
             card: null,
-            cardHidden: false
+            cardHidden: false,
+            roomList: []
         };
 
         const views = ["login", "lobby", "gameView"];
@@ -573,9 +621,61 @@
             }
         }
 
+        function renderRoomList() {
+            const ul = document.getElementById("roomList");
+            const noRoomsMsg = document.getElementById("noRoomsMsg");
+            const quickJoinBtn = document.getElementById("quickJoinBtn");
+            const list = state.roomList || [];
+
+            ul.innerHTML = "";
+            if (list.length === 0) {
+                noRoomsMsg.classList.remove("hidden");
+                quickJoinBtn.disabled = true;
+                return;
+            }
+
+            noRoomsMsg.classList.add("hidden");
+            quickJoinBtn.disabled = false;
+
+            for (const room of list) {
+                const li = document.createElement("li");
+                li.className = "room";
+
+                const info = document.createElement("div");
+                info.className = "room-info";
+                const host = document.createElement("span");
+                host.className = "host";
+                host.textContent = room.hostNickname;
+                const code = document.createElement("span");
+                code.className = "code";
+                code.textContent = room.code;
+                const meta = document.createElement("span");
+                meta.className = "meta";
+                const playersLabel = room.playerCount === 1 ? "1 jugador" : `${room.playerCount} jugadores`;
+                const impostorsLabel = room.impostorCount === 1 ? "1 impostor" : `${room.impostorCount} impostores`;
+                meta.textContent = `${playersLabel} · ${impostorsLabel}`;
+                info.appendChild(host);
+                info.appendChild(code);
+                info.appendChild(meta);
+                li.appendChild(info);
+
+                const btn = document.createElement("button");
+                btn.className = "vote-btn join-btn";
+                btn.textContent = "Unirse";
+                btn.onclick = () => {
+                    const nickname = readNickname();
+                    if (nickname) socket.emit("joinRoom", { nickname, code: room.code });
+                };
+                li.appendChild(btn);
+
+                ul.appendChild(li);
+            }
+        }
+
         function renderView() {
             if (!state.currentRoom) {
                 showView("login");
+                renderRoomList();
                 return;
             }
             const phase = state.room && state.room.phase;
@@ -593,6 +693,18 @@
         document.getElementById("createBtn").onclick = () => {
             const nickname = readNickname();
             if (nickname) socket.emit("createRoom", { nickname });
+        };
+
+        document.getElementById("quickJoinBtn").onclick = () => {
+            const nickname = readNickname();
+            if (!nickname) return;
+            const list = state.roomList || [];
+            if (list.length === 0) {
+                showModal({ title: "Sin salas", body: "No hay salas disponibles. Crea una." });
+                return;
+            }
+            const randomRoom = list[Math.floor(Math.random() * list.length)];
+            socket.emit("joinRoom", { nickname, code: randomRoom.code });
         };
 
         document.getElementById("joinBtn").onclick = () => {
@@ -625,6 +737,11 @@
 
         socket.on("roomCreated", ({ code }) => {
             state.currentRoom = code;
+        });
+
+        socket.on("roomList", (rooms) => {
+            state.roomList = Array.isArray(rooms) ? rooms : [];
+            if (!state.currentRoom) renderRoomList();
         });
 
         socket.on("roomUpdate", (room) => {

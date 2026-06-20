@@ -11,7 +11,8 @@ import {
     checkWin,
     isValidNickname,
     isValidRoomCode,
-    publicRoomState
+    publicRoomState,
+    listJoinableRooms
 } from "./game-logic.js";
 
 describe("generateRoomCode", () => {
@@ -320,5 +321,69 @@ describe("publicRoomState", () => {
         const pub = publicRoomState(room);
         expect(pub.players.h.expelled).toBe(false);
         expect(pub.players.o.expelled).toBe(true);
+    });
+});
+
+describe("listJoinableRooms", () => {
+    it("returns an empty array for no rooms", () => {
+        expect(listJoinableRooms({})).toEqual([]);
+        expect(listJoinableRooms(null)).toEqual([]);
+    });
+
+    it("only includes rooms in the lobby phase", () => {
+        const rooms = {
+            a: {
+                code: "AAAA",
+                host: "h1",
+                phase: PHASES.LOBBY,
+                impostorCount: 1,
+                players: { h1: { nickname: "Ana" } }
+            },
+            b: {
+                code: "BBBB",
+                host: "h2",
+                phase: PHASES.GAME,
+                impostorCount: 1,
+                players: { h2: { nickname: "Beto" } }
+            }
+        };
+        const list = listJoinableRooms(rooms);
+        expect(list).toHaveLength(1);
+        expect(list[0].code).toBe("AAAA");
+    });
+
+    it("exposes the host nickname, player count, and impostor count", () => {
+        const rooms = {
+            r: {
+                code: "WXYZ",
+                host: "h",
+                phase: PHASES.LOBBY,
+                impostorCount: 2,
+                players: { h: { nickname: "Host" }, o: { nickname: "Otro" } }
+            }
+        };
+        const list = listJoinableRooms(rooms);
+        expect(list[0]).toEqual({
+            code: "WXYZ",
+            hostNickname: "Host",
+            playerCount: 2,
+            impostorCount: 2
+        });
+    });
+
+    it("falls back to 'Anfitrión' if the host has no nickname", () => {
+        const rooms = {
+            r: { code: "ZZZZ", host: "h", phase: PHASES.LOBBY, impostorCount: 1, players: { h: {} } }
+        };
+        expect(listJoinableRooms(rooms)[0].hostNickname).toBe("Anfitrión");
+    });
+
+    it("returns rooms sorted by code", () => {
+        const rooms = {
+            a: { code: "ZZZZ", host: "h", phase: PHASES.LOBBY, impostorCount: 1, players: { h: { nickname: "A" } } },
+            b: { code: "AAAA", host: "h", phase: PHASES.LOBBY, impostorCount: 1, players: { h: { nickname: "B" } } }
+        };
+        const list = listJoinableRooms(rooms);
+        expect(list.map((r) => r.code)).toEqual(["AAAA", "ZZZZ"]);
     });
 });

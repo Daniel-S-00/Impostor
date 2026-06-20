@@ -135,3 +135,16 @@ export function publicRoomState(room) {
         )
     };
 }
+
+export function listJoinableRooms(rooms) {
+    if (!rooms || typeof rooms !== "object") return [];
+    return Object.values(rooms)
+        .filter((room) => room && room.phase === PHASES.LOBBY)
+        .map((room) => ({
+            code: room.code,
+            hostNickname: (room.players && room.players[room.host] && room.players[room.host].nickname) || "Anfitrión",
+            playerCount: room.players ? Object.keys(room.players).length : 0,
+            impostorCount: room.impostorCount
+        }))
+        .sort((a, b) => a.code.localeCompare(b.code));
+}

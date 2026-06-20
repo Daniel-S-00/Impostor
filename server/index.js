@@ -14,7 +14,8 @@ import {
     checkWin,
     isValidNickname,
     isValidRoomCode,
-    publicRoomState
+    publicRoomState,
+    listJoinableRooms
 } from "./game-logic.js";
 import { createRateLimiter, DEFAULT_RATE_LIMITS } from "./rate-limit.js";
 import { fileURLToPath } from "url";
@@ -63,6 +64,10 @@ function sendError(socket, message) {
 
 function broadcastRoom(room) {
     io.to(room.code).emit("roomUpdate", publicRoomState(room));
+}
+
+function broadcastRoomList() {
+    io.emit("roomList", listJoinableRooms(rooms));
 }
 
 function migrateHost(room) {
@@ -120,6 +125,7 @@ function removePlayerFromRoom(socket, code) {
 
     if (Object.keys(room.players).length === 0) {
         delete rooms[code];
+        broadcastRoomList();
         console.log(`Room ${code} deleted (empty).`);
         return;
     }
@@ -128,6 +134,7 @@ function removePlayerFromRoom(socket, code) {
         migrateHost(room);
     }
     broadcastRoom(room);
+    broadcastRoomList();
     console.log(`Player ${nickname} left room ${code}.`);
 }
 
@@ -170,10 +177,12 @@ function finishVoting(code) {
     }
     resetRoomForNewRound(room);
     broadcastRoom(room);
+    broadcastRoomList();
 }
 
 io.on("connection", (socket) => {
     console.log("Player connected:", socket.id);
+    socket.emit("roomList", listJoinableRooms(rooms));
 
     socket.on("createRoom", ({ nickname } = {}) => {
         if (!checkRate(socket, "createRoom")) return;
@@ -198,6 +207,7 @@ io.on("connection", (socket) => {
         socket.join(code);
         socket.emit("roomCreated", { code });
         broadcastRoom(rooms[code]);
+        broadcastRoomList();
         console.log(`Room ${code} created by ${nickname}.`);
     });
 
@@ -220,6 +230,7 @@ io.on("connection", (socket) => {
         socket.join(code);
         socket.emit("roomCreated", { code });
         broadcastRoom(room);
+        broadcastRoomList();
         console.log(`${nickname} joined room ${code}.`);
     });
 
@@ -257,6 +268,7 @@ io.on("connection", (socket) => {
         room.phase = PHASES.GAME;
         dealCards(room);
         broadcastRoom(room);
+        broadcastRoomList();
         console.log(`Room ${code} round ${room.currentRound} started.`);
     });
 

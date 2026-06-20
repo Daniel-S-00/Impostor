@@ -100,6 +100,7 @@ Server → client:
 | Event              | Payload                                                 | Notes                              |
 |--------------------|---------------------------------------------------------|------------------------------------|
 | `roomCreated`      | `{ code }`                                              | Sent to the creator and to anyone who joined. |
+| `roomList`         | `Array<{ code, hostNickname, playerCount, impostorCount }>` | Broadcast to every connected socket on connect and whenever the lobby-state changes (room created, player joins/leaves, game starts/ends). |
 | `roomUpdate`       | `publicRoomState`                                       | Broadcast to the whole room. Re-broadcast on every vote so the `voters` list stays current. |
 | `card`             | `{ role, category, word? }`                             | **Private** — one socket only.     |
 | `votingResult`     | `{ tie, counts, expelled?, wasImpostor? }`              | Broadcast.                         |

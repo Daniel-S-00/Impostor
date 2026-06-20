@@ -10,7 +10,7 @@ wins if they outnumber the crew.
 ## How it works
 
 - A player creates a room and gets a 4-character room code.
-- Other players join using the code and a nickname.
+- Other players can either type the code or pick from the **Salas disponibles** list (or hit **Unirse al azar** to drop into a random one). The list and the random-join button are powered by the `roomList` event the server broadcasts on every lobby change.
 - The host picks how many impostors will be in the round (1, 2, or 3) and starts
   the game. The server:
   - Picks N random players as the **Impostor(s)**.
@@ -104,6 +104,7 @@ Server → client:
 | Event            | Payload                                  | Description                                |
 |------------------|------------------------------------------|--------------------------------------------|
 | `roomCreated`    | `{ code }`                               | Sent to the creator and to any joiner.     |
+| `roomList`       | `Array<{ code, hostNickname, playerCount, impostorCount }>` | Broadcast on connect and whenever a lobby opens/closes/joins. Used by the "Salas disponibles" section and the "Unirse al azar" button. |
 | `roomUpdate`     | `publicRoomState`                        | Lobby / in-game state. Includes `voters: string[]` (ids that have already cast a vote in the current round). Re-broadcast after every vote. |
 | `card`           | `{ role, category, word? }`              | Private role card.                         |
 | `votingResult`   | `{ tie, counts, expelled?, wasImpostor? }` | Round result.                            |
