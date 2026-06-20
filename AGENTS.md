@@ -30,6 +30,7 @@ Impostor-online/
 ├── README.md                  # user-facing docs
 ├── DEPLOY.md                  # Render + Cloudflare Tunnel deployment guide
 ├── render.yaml                # Render Blueprint (infra-as-code)
+├── LICENSE                    # MIT license
 ├── .gitignore
 └── server/
     ├── package.json
@@ -39,7 +40,6 @@ Impostor-online/
     ├── rate-limit.js          # per-socket rate limiter
     ├── rate-limit.test.js     # vitest tests for rate limiter
     ├── words.js               # Spanish word lists by category
-    ├── LICENSE                # ISC license
     └── public/
         └── index.html         # single-page client (vanilla JS)
 ```

@@ -125,4 +125,4 @@ ids so the server is the single source of truth for private information.
 
 ## License
 
-ISC (see `LICENSE`).
+MIT — see [LICENSE](LICENSE).
