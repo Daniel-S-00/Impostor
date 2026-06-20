@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Impostor Online</title>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        body {
+            background: #0f172a;
+            color: #e5e7eb;
+            font-family: Arial;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: #020617;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        button {
+            background: #ef4444;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .secondary {
+            background: #2563eb;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #1e293b;
+            margin-top: 6px;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .role {
+            font-size: 26px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .impostor {
+            color: #ef4444;
+        }
+
+        .amigo {
+            color: #22c55e;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card" id="login">
+        <h2>Impostor Online</h2>
+        <input id="nickname" placeholder="Nickname">
+        <button onclick="createRoom()">Crear sala</button>
+
+        <input id="roomCode" placeholder="Código de sala">
+        <button onclick="joinRoom()">Unirse</button>
+    </div>
+
+    <div class="card hidden" id="room">
+        <h3>Sala: <span id="code"></span></h3>
+        <ul id="players"></ul>
+        <button id="startBtn" class="secondary hidden" onclick="startGame()">Iniciar partida</button>
+    </div>
+
+    <div class="card hidden" id="game">
+        <h3>Tu carta</h3>
+        <div id="role" class="role"></div>
+    </div>
+
+    <div class="card hidden" id="voting">
+        <h3>Votación</h3>
+        <p>Elige a quién expulsar</p>
+        <div id="voteButtons"></div>
+    </div>
+
+
+    <script>
+        const socket = io();
+        let currentRoom = null;
+        let myId = null;
+
+        socket.on("connect", () => myId = socket.id);
+
+        function nicknameValue() {
+            const n = document.getElementById("nickname").value.trim();
+            if (!n) { alert("Escribe un nickname"); throw ""; }
+            return n;
+        }
+
+        function createRoom() {
+            socket.emit("createRoom", { nickname: nicknameValue() });
+        }
+
+        function joinRoom() {
+            socket.emit("joinRoom", {
+                nickname: nicknameValue(),
+                code: document.getElementById("roomCode").value.trim().toUpperCase()
+            });
+        }
+
+        function startGame() {
+            socket.emit("startGame", currentRoom);
+        }
+
+        socket.on("roomCreated", ({ code }) => {
+            currentRoom = code;
+            document.getElementById("code").textContent = code;
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("room").classList.remove("hidden");
+        });
+
+        socket.on("roomUpdate", (room) => {
+            if (!room) return;
+            const ul = document.getElementById("players");
+            ul.innerHTML = "";
+
+            Object.values(room.players).forEach(p => {
+                const li = document.createElement("li");
+                li.textContent = p.nickname;
+                ul.appendChild(li);
+            });
+
+            if (room.host === myId) {
+                document.getElementById("startBtn").classList.remove("hidden");
+            }
+        });
+
+        socket.on("card", (data) => {
+            document.getElementById("room").classList.add("hidden");
+            document.getElementById("game").classList.remove("hidden");
+
+            const div = document.getElementById("role");
+
+            if (data.role === "impostor") {
+                div.innerHTML = `
+            <div class="impostor">IMPOSTOR</div>
+            <p>Categoría: <b>${data.category}</b></p>
+        `;
+            } else {
+                div.innerHTML = `
+            <div class="amigo">AMIGO</div>
+            <p>Categoría: <b>${data.category}</b></p>
+            <p>Palabra: <b>${data.word}</b></p>
+        `;
+            }
+        });
+
+        socket.on("votingStarted", ({ players }) => {
+            document.getElementById("game").classList.add("hidden");
+            document.getElementById("voting").classList.remove("hidden");
+
+            const container = document.getElementById("voteButtons");
+            container.innerHTML = "";
+
+            Object.entries(players).forEach(([id, player]) => {
+                if (id === myId) return; // no votarse a sí mismo
+
+                const btn = document.createElement("button");
+                btn.textContent = player.nickname;
+
+                btn.onclick = () => {
+                    socket.emit("vote", {
+                        code: currentRoom,
+                        targetId: id
+                    });
+
+                    container.innerHTML = "<p>🗳️ Voto enviado</p>";
+                };
+
+                container.appendChild(btn);
+            });
+        });
+
+        socket.on("votingResult", (data) => {
+            document.getElementById("voting").classList.add("hidden");
+
+            if (data.tie) {
+                alert("Empate. Nadie fue expulsado.");
+                return;
+            }
+
+            alert(
+                `Expulsado: ${data.expelled}\n` +
+                `¿Era impostor? ${data.wasImpostor ? "SÍ 😈" : "NO 😇"}`
+            );
+        });
+
+        socket.on("gameEnded", (data) => {
+            alert(`🎉 Juego terminado. Ganaron los ${data.winner.toUpperCase()}`);
+        });
+
+
+
+
+        socket.on("errorMessage", alert);
+    </script>
+
+</body>
+
+</html>
