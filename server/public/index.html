@@ -348,7 +348,7 @@
     </div>
 
     <script>
-        const socket = io();
+        const socket = io({ transports: ["websocket"] });
         const state = {
             myId: null,
             currentRoom: null,

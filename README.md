@@ -78,21 +78,31 @@ Environment variables:
 
 ## Reconnection
 
-Browsers aggressively throttle timers in background tabs. Socket.IO's default
-20-second `pingTimeout` is too short for a tab the user has switched away
-from, so the server can drop the socket even though the user is still on the
-page.
+Browsers aggressively throttle `setTimeout` / `setInterval` in background
+tabs (Chrome to ~1/min, others more). Socket.IO's default 20s `pingTimeout`
+is too short for a backgrounded tab — the heartbeat (a JS `setTimeout`)
+doesn't fire in time and the server drops the socket.
 
-The server is configured with `pingTimeout: 300000` (5 minutes) and
-`pingInterval: 25000` (25 seconds), so a tab that's been backgrounded for a
-few minutes will still get a chance to ping.
+Two mitigations are in place:
 
-If the socket does drop anyway, the client shows a **"Conexión perdida"**
-modal with a **"Recargar"** button. If the user clicks it, the page reloads.
-If Socket.IO's built-in auto-reconnect succeeds, the client closes the modal
-automatically, returns to the login view, and shows a **"Reconectado"** modal
-telling the user to rejoin a room — the server has no memory of the player
-after a disconnect.
+1. The server is configured with `pingTimeout: 3600000` (1 hour) and
+   `pingInterval: 25000` (25 seconds), so a backgrounded tab has a
+   full hour of grace before the server gives up.
+2. Both the client (`io({ transports: ["websocket"] })`) and the server
+   (`transports: ["websocket"]`) are restricted to the WebSocket
+   transport. The default starts with HTTP long-polling, which uses
+   `setTimeout` and gets throttled. WebSocket is push-based, so its
+   ping/pong frames are handled by the browser's native WebSocket
+   implementation and are not subject to JS timer throttling.
+
+If the socket does drop anyway (e.g. the user's machine actually
+sleeps and the OS suspends the network stack), the client shows a
+**"Conexión perdida"** modal with a **"Recargar"** button. If the user
+clicks it, the page reloads. If Socket.IO's built-in auto-reconnect
+succeeds, the client closes the modal automatically, returns to the
+login view, and shows a **"Reconectado"** modal telling the user to
+rejoin a room — the server has no memory of the player after a
+disconnect.
 
 ## Running the tests
 

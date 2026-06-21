@@ -28,8 +28,9 @@ const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    pingTimeout: 300000,
-    pingInterval: 25000
+    pingTimeout: 3600000,
+    pingInterval: 25000,
+    transports: ["websocket"]
 });
 
 app.use(express.static(path.join(__dirname, "public")));
