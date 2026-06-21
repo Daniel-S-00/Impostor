@@ -166,6 +166,30 @@ round) so clients can show progress. **Never** include `role`, `word`, or
 
 ---
 
+## Reconnection
+
+Browsers aggressively throttle timers in background tabs. Socket.IO's default
+`pingTimeout` of 20 seconds is too short for a tab the user has switched
+away from, so the server can drop the socket even though the user is still
+on the page.
+
+The server is configured with `pingTimeout: 300000` (5 minutes) and
+`pingInterval: 25000` (25 seconds), so a tab that's been backgrounded for a
+few minutes will still get a chance to ping.
+
+If the socket does drop, the client:
+
+1. Shows a "Conexión perdida" modal with a "Recargar" button. The page
+   reloads if the user clicks it (or presses Enter/Escape).
+2. Listens for the `connect` event from Socket.IO's built-in auto-reconnect.
+3. On successful reconnection, closes the modal, calls `resetToLogin()`,
+   and shows a "Reconectado" modal telling the user to rejoin a room
+   (the server has no memory of the player after a disconnect).
+
+`resetToLogin` is also called as the first step of the reconnect path, so
+a stale `state.currentRoom` or `state.room` can never cause the post-reload
+view to land in a stale room.
+
 ## How to run
 
 ```powershell
@@ -177,9 +201,7 @@ npm start
 Open <http://localhost:3000>. To play across the LAN, share your machine's
 LAN IP on port 3000.
 
-Environment variables:
-
-- `PORT` — server port (default `3000`).
+Environment variables:- `PORT` — server port (default `3000`).
 
 ## How to test
 

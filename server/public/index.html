@@ -423,6 +423,16 @@
 
         let modalKeyHandler = null;
 
+        function closeModal() {
+            const modal = document.getElementById("modal");
+            modal.classList.add("hidden");
+            document.getElementById("modalOk").onclick = null;
+            if (modalKeyHandler) {
+                document.removeEventListener("keydown", modalKeyHandler);
+                modalKeyHandler = null;
+            }
+        }
+
         function showModal({ title, body, buttonText = "Aceptar", onClose = null } = {}) {
             const modal = document.getElementById("modal");
             const titleEl = document.getElementById("modalTitle");
@@ -441,12 +451,7 @@
             okBtn.textContent = buttonText;
 
             const close = () => {
-                modal.classList.add("hidden");
-                okBtn.onclick = null;
-                if (modalKeyHandler) {
-                    document.removeEventListener("keydown", modalKeyHandler);
-                    modalKeyHandler = null;
-                }
+                closeModal();
                 if (typeof onClose === "function") onClose();
             };
 
@@ -756,8 +761,38 @@
             renderView();
         };
 
+        let reconnecting = false;
+
+        function showDisconnectModal() {
+            if (reconnecting) return;
+            reconnecting = true;
+            showModal({
+                title: "Conexión perdida",
+                body: "Se ha perdido la conexión con el servidor. Intentaremos reconectar automáticamente; si no, pulsa Recargar para volver a la pantalla de inicio.",
+                buttonText: "Recargar",
+                onClose: () => {
+                    window.location.reload();
+                }
+            });
+        }
+
         socket.on("connect", () => {
+            const wasReconnect = reconnecting;
+            reconnecting = false;
             state.myId = socket.id;
+            if (wasReconnect) {
+                closeModal();
+                resetToLogin();
+                showModal({
+                    title: "Reconectado",
+                    body: "Volviste a conectarte al servidor. Vuelve a unirte a una sala para jugar.",
+                    buttonText: "OK"
+                });
+            }
+        });
+
+        socket.on("disconnect", () => {
+            showDisconnectModal();
         });
 
         socket.on("roomCreated", ({ code }) => {
