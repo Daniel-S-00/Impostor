@@ -199,6 +199,43 @@ sleeps and the OS suspends the network stack), the client:
 a stale `state.currentRoom` or `state.room` can never cause the post-reload
 view to land in a stale room.
 
+### Microsoft Edge "Sleeping Tabs"
+
+Edge has a built-in feature called **Sleeping Tabs** that is more aggressive
+than Chrome's background-throttling. When Edge decides a tab is "inactive"
+(default after a few hours in newer versions, sooner in some configs), it
+freezes the tab's JavaScript *and* its WebSocket — there is no heartbeat
+the server can detect, and the socket will be reported as disconnected the
+moment the user comes back to the tab.
+
+This is a browser-level behavior that the app cannot work around from
+JavaScript. The recovery flow (disconnect modal + manual reload) is the
+expected behavior in that case. To prevent the disconnects in Edge:
+
+1. Open `edge://settings/system`.
+2. Under "Sleeping Tabs", either:
+   - Switch the master toggle to **Off**, or
+   - Leave it on but click "Never put these sites to sleep" and add the
+     game's URL (e.g. `https://impostor-online.onrender.com`).
+
+Chrome users do not need this; Chrome's throttling is limited to JavaScript
+timers and does not freeze WebSockets, so the 1-hour `pingTimeout` covers
+the realistic background-time case.
+
+## Logging
+
+The server uses a small `log()` helper in `server/index.js` that prefixes
+every line with an `[HH:MM:SS]` timestamp, so event ordering is easy to
+read in the terminal:
+
+```
+[14:32:08] Impostor server running on http://localhost:3000
+[14:32:11] Player connected: 8uUSSfOq76F_crX7AAAB
+[14:32:14] Room ABCD created by Ana.
+[14:32:15] Beto joined room ABCD.
+[14:32:20] Room ABCD round 1 started.
+```
+
 ## How to run
 
 ```powershell

@@ -25,6 +25,19 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
 
+function pad2(n) {
+    return String(n).padStart(2, "0");
+}
+
+function timestamp() {
+    const d = new Date();
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function log(...args) {
+    console.log(`[${timestamp()}]`, ...args);
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -130,7 +143,7 @@ function removePlayerFromRoom(socket, code) {
     if (Object.keys(room.players).length === 0) {
         delete rooms[code];
         broadcastRoomList();
-        console.log(`Room ${code} deleted (empty).`);
+        log(`Room ${code} deleted (empty).`);
         return;
     }
 
@@ -139,7 +152,7 @@ function removePlayerFromRoom(socket, code) {
     }
     broadcastRoom(room);
     broadcastRoomList();
-    console.log(`Player ${nickname} left room ${code}.`);
+    log(`Player ${nickname} left room ${code}.`);
 }
 
 function finishVoting(code) {
@@ -185,7 +198,7 @@ function finishVoting(code) {
 }
 
 io.on("connection", (socket) => {
-    console.log("Player connected:", socket.id);
+    log("Player connected:", socket.id);
     socket.emit("roomList", listJoinableRooms(rooms));
 
     socket.on("createRoom", ({ nickname } = {}) => {
@@ -212,7 +225,7 @@ io.on("connection", (socket) => {
         socket.emit("roomCreated", { code });
         broadcastRoom(rooms[code]);
         broadcastRoomList();
-        console.log(`Room ${code} created by ${nickname}.`);
+        log(`Room ${code} created by ${nickname}.`);
     });
 
     socket.on("joinRoom", ({ nickname, code } = {}) => {
@@ -235,7 +248,7 @@ io.on("connection", (socket) => {
         socket.emit("roomCreated", { code });
         broadcastRoom(room);
         broadcastRoomList();
-        console.log(`${nickname} joined room ${code}.`);
+        log(`${nickname} joined room ${code}.`);
     });
 
     socket.on("setImpostorCount", ({ code, count } = {}) => {
@@ -273,7 +286,7 @@ io.on("connection", (socket) => {
         dealCards(room);
         broadcastRoom(room);
         broadcastRoomList();
-        console.log(`Room ${code} round ${room.currentRound} started.`);
+        log(`Room ${code} round ${room.currentRound} started.`);
     });
 
     socket.on("vote", ({ code, targetId } = {}) => {
@@ -299,7 +312,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log("Player disconnected:", socket.id);
+        log("Player disconnected:", socket.id);
         for (const code of Object.keys(rooms)) {
             removePlayerFromRoom(socket, code);
         }
@@ -307,5 +320,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`Impostor server running on http://localhost:${PORT}`);
+    log(`Impostor server running on http://localhost:${PORT}`);
 });

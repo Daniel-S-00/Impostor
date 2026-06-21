@@ -104,6 +104,30 @@ login view, and shows a **"Reconectado"** modal telling the user to
 rejoin a room — the server has no memory of the player after a
 disconnect.
 
+### Microsoft Edge "Sleeping Tabs"
+
+Edge has a built-in feature called **Sleeping Tabs** that is more
+aggressive than Chrome's background-throttling. When Edge decides a
+tab is "inactive" it freezes the tab's JavaScript *and* its
+WebSocket — there is no heartbeat the server can detect, and the
+socket will be reported as disconnected the moment the user comes
+back to the tab.
+
+This is a browser-level behavior that the app cannot work around from
+JavaScript. The recovery flow (disconnect modal + manual reload) is
+the expected behavior in that case. To prevent the disconnects in
+Edge:
+
+1. Open `edge://settings/system`.
+2. Under "Sleeping Tabs", either:
+   - Switch the master toggle to **Off**, or
+   - Leave it on but click "Never put these sites to sleep" and add
+     the game's URL (e.g. `https://impostor-online.onrender.com`).
+
+Chrome users do not need this; Chrome's throttling is limited to
+JavaScript timers and does not freeze WebSockets, so the 1-hour
+`pingTimeout` covers the realistic background-time case.
+
 ## Running the tests
 
 ```powershell
@@ -152,6 +176,14 @@ ids so the server is the single source of truth for private information.
 - If the host disconnects, the next player in the room is promoted to host.
 - Word categories and lists live in `server/words.js`; edit that file to add or
   change words. The category names are the keys in the `words` object.
+- The server uses a small `log()` helper in `server/index.js` that prefixes
+  every line with an `[HH:MM:SS]` timestamp, so the terminal log is easy
+  to read:
+  ```
+  [14:32:08] Impostor server running on http://localhost:3000
+  [14:32:11] Player connected: 8uUSSfOq76F_crX7AAAB
+  [14:32:14] Room ABCD created by Ana.
+  ```
 
 ## License
 
